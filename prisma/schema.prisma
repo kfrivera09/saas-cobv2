@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+// ------------------------------------------------------
+// 1. CONFIGURACIÓN Y MULTI-TENANT
+// ------------------------------------------------------
+model Tenant {
+  id              String   @id @default(uuid())
+  name            String
+  defaultInterest Float    @default(20.0) // Configuración global básica
+  
+  users           User[]
+  routes          Route[]
+  clients         Client[]
+  loans           Loan[]
+  workdays        Workday[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ------------------------------------------------------
+// 2. USUARIOS Y RUTAS
+// ------------------------------------------------------
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String
+  email     String   @unique
+  password  String
+  role      String   // "ADMIN" | "WORKER"
+  
+  routes    Route[]
+  workdays  Workday[]
+  
+  createdAt DateTime @default(now())
+}
+
+model Route {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String
+  workerId  String?
+  worker    User?    @relation(fields: [workerId], references: [id])
+  
+  clients   Client[]
+  
+  createdAt DateTime @default(now())
+}
+
+// ------------------------------------------------------
+// 3. CLIENTES, PRÉSTAMOS Y CUOTAS (CORE FINANCIERO)
+// ------------------------------------------------------
+model Client {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String
+  phone     String?
+  address   String
+  lat       Float?
+  lng       Float?
+  
+  routeId   String
+  route     Route    @relation(fields: [routeId], references: [id])
+  loans     Loan[]
+  
+  createdAt DateTime @default(now())
+}
+
+model Loan {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  
+  amount        Float    // Capital prestado
+  interest      Float    // Porcentaje
+  totalAmount   Float    // Total a pagar
+  balance       Float    // Saldo pendiente
+  frequency     String   // "DAILY" | "WEEKLY"
+  
+  installments  Installment[]
+  
+  status        String   @default("ACTIVE") // "ACTIVE" | "PAID"
+  createdAt     DateTime @default(now())
+}
+
+model Installment {
+  id          String   @id @default(uuid())
+  loanId      String
+  loan        Loan     @relation(fields: [loanId], references: [id])
+  
+  amountDue   Float    // Valor de la cuota
+  amountPaid  Float    @default(0) // Cuánto ha abonado a esta cuota
+  dueDate     DateTime // Fecha de vencimiento
+  
+  status      String   @default("PENDING") // "PENDING" | "PARTIAL" | "PAID"
+  paidAt      DateTime?
+}
+
+// ------------------------------------------------------
+// 4. JORNADA LABORAL Y TRANSACCIONES (EL DÍA A DÍA)
+// ------------------------------------------------------
+model Workday {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  workerId    String
+  worker      User     @relation(fields: [workerId], references: [id])
+  
+  baseAmount  Float    @default(0) // Dinero con el que inicia el día
+  status      String   @default("OPEN") // "OPEN" | "CLOSED"
+  
+  collections Collection[]
+  expenses    Expense[]
+  locations   Location[]
+  panicAlerts PanicAlert[]
+  closure     WorkdayClosure? // Cierre de caja
+  
+  openedAt    DateTime @default(now())
+  closedAt    DateTime?
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  workdayId   String
+  workday     Workday  @relation(fields: [workdayId], references: [id])
+  
+  amount      Float
+  loanId      String   // Referencia al préstamo abonado
+  
+  lat         Float?   // Tracking de dónde se hizo el cobro
+  lng         Float?
+  
+  createdAt   DateTime @default(now())
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  workdayId   String
+  workday     Workday  @relation(fields: [workdayId], references: [id])
+  
+  amount      Float
+  description String
+  
+  createdAt   DateTime @default(now())
+}
+
+model WorkdayClosure {
+  id              String   @id @default(uuid())
+  workdayId       String   @unique
+  workday         Workday  @relation(fields: [workdayId], references: [id])
+  
+  reportedCash    Float    // Lo que el cobrador dice tener (Declaración Ciega)
+  calculatedCash  Float    // (Base + Cobros - Gastos) (Efectivo Teórico)
+  difference      Float    // Diferencia (Faltante/Sobrante)
+  
+  // --- NUEVOS CAMPOS PARA INVERSIONISTAS ---
+  status          String   @default("PENDING_APPROVAL") // "PENDING_APPROVAL" | "APPROVED"
+  
+  rolloverAmount  Float?   // Cuánto dinero se deja como base para la ruta de mañana
+  safeDeposit     Float?   // Cuánto dinero entregó físicamente a la caja fuerte/banco
+  
+  approvedAt      DateTime?
+  approvedById    String?  // ID del Admin que lo revisó
+  
+  createdAt       DateTime @default(now())
+}
+
+// ------------------------------------------------------
+// 5. SEGURIDAD Y TRACKING
+// ------------------------------------------------------
+model Location {
+  id          String   @id @default(uuid())
+  workdayId   String
+  workday     Workday  @relation(fields: [workdayId], references: [id])
+  
+  lat         Float
+  lng         Float
+  timestamp   DateTime @default(now())
+}
+
+model PanicAlert {
+  id          String   @id @default(uuid())
+  workdayId   String
+  workday     Workday  @relation(fields: [workdayId], references: [id])
+  
+  lat         Float
+  lng         Float
+  status      String   @default("PENDING") // "PENDING" | "ACKNOWLEDGED"
+  
+  createdAt   DateTime @default(now())
+}
