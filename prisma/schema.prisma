@@ -53,7 +53,7 @@ model Route {
   worker    User?    @relation(fields: [workerId], references: [id])
   
   clients   Client[]
-  
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }
 
@@ -70,11 +70,10 @@ model Client {
   address   String
   lat       Float?
   lng       Float?
-  
+  active    Boolean  @default(true)
   routeId   String
   route     Route    @relation(fields: [routeId], references: [id])
   loans     Loan[]
-  
   createdAt DateTime @default(now())
 }
 
