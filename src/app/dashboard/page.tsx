@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "../../lib/prisma";
 import { aprobarCierre, resolverAlerta } from "./actions";
-import { iniciarJornada } from "../cobrador/actions";
+import { iniciarJornada } from "../cobrador/actions"; // Importación necesaria para el botón [cite: 702]
 import DashboardMapWrapper from "../../components/DashboardMapWrapper";
 
 export default async function DashboardPage() {
@@ -16,14 +16,18 @@ export default async function DashboardPage() {
 
   if (!admin || !admin.tenantId) return <div className="p-10">Error de configuración de empresa.</div>;
 
+  // Busca si el Admin tiene su propia jornada abierta [cite: 703]
   const miJornada = await prisma.workday.findFirst({
     where: { workerId: admin.id, status: "OPEN" }
   });
 
+  // log para jornada
+  console.log("DEBUG DASHBOARD -> Admin ID:", admin.id, "Jornada encontrada:", miJornada ? "SI" : "NO");
+
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
-  // 1. CONSULTAS GLOBALES CON SEPARACIÓN CONTABLE [cite: 703, 704]
+  // 1. Consultas Globales con separación contable (Calle vs Oficina) [cite: 703, 704]
   const [
     pCount,
     cCount,
@@ -36,7 +40,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     prisma.loan.count({ where: { tenantId: admin.tenantId } }),
     prisma.client.count({ where: { tenantId: admin.tenantId } }),
-
+    
     // Cierres de calle esperando aprobación
     prisma.workdayClosure.findMany({
       where: { status: "PENDING_APPROVAL", workday: { tenantId: admin.tenantId } },
@@ -44,7 +48,7 @@ export default async function DashboardPage() {
       orderBy: { createdAt: 'desc' }
     }),
 
-    // Monitoreo de jornadas abiertas (Live GPS) [cite: 703]
+    // Monitoreo de jornadas abiertas (Live GPS) [cite: 704, 705]
     prisma.workday.findMany({
       where: { tenantId: admin.tenantId, status: "OPEN" },
       include: {
@@ -55,25 +59,25 @@ export default async function DashboardPage() {
       }
     }),
 
-    // A. RECAUDACIÓN EN CALLE (Cobros de usuarios con rol WORKER) [cite: 704]
+    // RECAUDACIÓN EN CALLE (Usuarios con rol WORKER) [cite: 705]
     prisma.collection.aggregate({
       where: { workday: { status: "OPEN", worker: { role: "WORKER" }, tenantId: admin.tenantId } },
       _sum: { amount: true }
     }),
 
-    // B. RECAUDACIÓN EN OFICINA (Cobros de usuarios con rol ADMIN) [cite: 704]
+    // RECAUDACIÓN EN OFICINA (Usuarios con rol ADMIN) [cite: 706]
     prisma.collection.aggregate({
       where: { workday: { status: "OPEN", worker: { role: "ADMIN" }, tenantId: admin.tenantId } },
       _sum: { amount: true }
     }),
 
-    // C. CAJA FUERTE (Dinero físico ya aprobado por el dueño) [cite: 663, 704]
+    // CAJA FUERTE (Dinero físico ya aprobado) [cite: 706]
     prisma.workdayClosure.aggregate({
       where: { status: "APPROVED", workday: { tenantId: admin.tenantId } },
       _sum: { safeDeposit: true }
     }),
 
-    // Emergencias activas
+    // Emergencias activas [cite: 707]
     prisma.panicAlert.findMany({
       where: { status: "PENDING", workday: { tenantId: admin.tenantId } },
       include: { workday: { include: { worker: true } } }
@@ -84,7 +88,7 @@ export default async function DashboardPage() {
   const montoOficina = recaudoOficinaQuery._sum.amount || 0;
   const cajaFuerteTotal = cierresAprobados._sum.safeDeposit || 0;
 
-  // 2. Preparar datos para el Mapa (Mantenemos la corrección de índices ) [cite: 705]
+  // 2. Preparar datos para el Mapa [cite: 707, 708]
   const puntosCobradores = activos
     .filter(j => j.locations.length > 0)
     .map(j => ({
@@ -109,35 +113,37 @@ export default async function DashboardPage() {
   const centroInicial: [number, number] = puntosPanicos.length > 0
     ? [puntosPanicos[0].lat, puntosPanicos[0].lng]
     : puntosCobradores.length > 0
-      ? [puntosCobradores[0].lat, puntosCobradores[0].lng]
-      : [4.6097, -74.0817];
+    ? [puntosCobradores[0].lat, puntosCobradores[0].lng]
+    : [4.6097, -74.0817];
 
   return (
     <div className="space-y-10 pb-20">
-       {!miJornada && (
-      <div className="bg-orange-50 border-2 border-orange-200 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg shadow-orange-100">
-        <div className="flex items-center gap-4">
-          <span className="text-4xl">🏛️</span>
-          <div>
-            <h3 className="text-xl font-black text-orange-800">Oficina Cerrada</h3>
-            <p className="text-orange-600 text-sm font-medium">Debes abrir tu turno para registrar recaudos en escritorio.</p>
+      {/* 🔓 BLOQUE DE INICIO DE JORNADA PARA ADMIN (El Botón) [cite: 709, 710] */}
+      {!miJornada && (
+        <div className="bg-orange-50 border-2 border-orange-200 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg shadow-orange-100">
+          <div className="flex items-center gap-4">
+            <span className="text-4xl">🏛️</span>
+            <div>
+              <h3 className="text-xl font-black text-orange-800">Oficina Cerrada</h3>
+              <p className="text-orange-600 text-sm font-medium">Debes abrir tu turno para registrar recaudos en escritorio.</p>
+            </div>
           </div>
+          <form action={iniciarJornada} className="flex gap-3 w-full md:w-auto">
+            <input
+              type="number"
+              name="baseAmount"
+              placeholder="Base $"
+              className="w-24 bg-white border border-orange-200 rounded-xl p-3 text-sm font-bold"
+              required
+            />
+            <button type="submit" className="bg-orange-600 text-white font-black px-6 py-3 rounded-xl text-xs uppercase">
+              Abrir Oficina 🔓
+            </button>
+          </form>
         </div>
-        <form action={iniciarJornada} className="flex gap-3 w-full md:w-auto">
-          <input 
-            type="number" 
-            name="baseAmount" 
-            placeholder="Base $" 
-            className="w-24 bg-white border border-orange-200 rounded-xl p-3 text-sm font-bold" 
-            required 
-          />
-          <button type="submit" className="bg-orange-600 text-white font-black px-6 py-3 rounded-xl text-xs uppercase">
-            Abrir Oficina 🔓
-          </button>
-        </form>
-      </div>
-    )}
-      {/* SECCIÓN DE EMERGENCIAS */}
+      )}
+
+      {/* SECCIÓN DE EMERGENCIAS [cite: 711, 712] */}
       {panicos.length > 0 && (
         <section className="space-y-4">
           <div className="bg-red-600 p-6 rounded-[2.5rem] shadow-2xl animate-pulse">
@@ -160,7 +166,7 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* MÉTRICAS GLOBALES CON 5 COLUMNAS [cite: 711, 712] */}
+      {/* MÉTRICAS GLOBALES CON 5 COLUMNAS [cite: 714-717] */}
       <div className="space-y-6">
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">Panel de Control 🏛️</h2>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -178,7 +184,7 @@ export default async function DashboardPage() {
             <p className="text-3xl font-black text-slate-800 mt-1">${recapitular(montoCalle)}</p>
             <p className="text-[8px] text-slate-400 font-bold mt-1 uppercase">En rutas 🛵</p>
           </div>
-          {/* MÉTRICA DE OFICINA (La que buscabas) */}
+          {/* MÉTRICA DE OFICINA */}
           <div className="bg-white p-5 rounded-3xl border border-orange-100 shadow-sm">
             <h3 className="text-orange-500 text-[9px] font-black uppercase tracking-widest">Recaudos Oficina</h3>
             <p className="text-3xl font-black text-slate-800 mt-1">${recapitular(montoOficina)}</p>
@@ -195,13 +201,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* MAPA */}
+      {/* MAPA [cite: 718] */}
       <section className="space-y-6">
         <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">🌍 Mapa de Operaciones en Vivo</h3>
         <DashboardMapWrapper puntos={puntosMapa} center={centroInicial} />
       </section>
 
-      {/* MONITOR DE PERSONAL (WIDGETS) */}
+      {/* MONITOR DE PERSONAL [cite: 718-724] */}
       <section className="space-y-6">
         <h3 className="text-xl font-black text-slate-800">🛰️ Monitor de Personal</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -210,7 +216,7 @@ export default async function DashboardPage() {
             const totalGastos = jornada.expenses.reduce((acc, e) => acc + e.amount, 0);
             const efectivoTeorico = (jornada.baseAmount + totalCobros) - totalGastos;
             const ultimaLoc = jornada.locations;
-            const minutos = ultimaLoc ? Math.floor((new Date().getTime() - new Date(ultimaLoc[0].timestamp).getTime()) / 60000) : null;
+            const minutos = ultimaLoc.length > 0 ? Math.floor((new Date().getTime() - new Date(ultimaLoc[0].timestamp).getTime()) / 60000) : null;
 
             return (
               <div key={jornada.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-lg overflow-hidden flex flex-col group">
@@ -235,7 +241,7 @@ export default async function DashboardPage() {
                     <span className={`flex h-2 w-2 rounded-full ${minutos !== null && minutos < 10 ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></span>
                     <p className="text-[10px] font-black text-slate-600 uppercase">{minutos !== null ? `Hace ${minutos} min` : 'Sin señal GPS'}</p>
                   </div>
-                  {ultimaLoc && (
+                  {ultimaLoc.length > 0 && (
                     <a href={`https://www.google.com/maps?q=${ultimaLoc[0].lat},${ultimaLoc[0].lng}`} target="_blank" className="text-[9px] font-bold text-blue-600 underline uppercase">Google Maps</a>
                   )}
                 </div>
@@ -245,7 +251,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* AUDITORÍA DE CIERRES */}
+      {/* AUDITORÍA DE LIQUIDACIONES [cite: 724-729] */}
       <section className="space-y-6">
         <h3 className="text-xl font-black text-slate-800">🔍 Auditoría de Liquidaciones</h3>
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">

@@ -103,7 +103,7 @@ export default async function CajaCobradorPage() {
             name="description" 
             placeholder="Ej. Gasolina" 
             required
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-black font-medium focus:outline-none focus:border-blue-500"
           />
           <input 
             type="number" 
@@ -111,7 +111,7 @@ export default async function CajaCobradorPage() {
             step="0.01"
             placeholder="$ 0.00" 
             required
-            className="w-24 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold focus:outline-none focus:border-blue-500 text-center"
+            className="w-24 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-black font-bold focus:outline-none focus:border-blue-500 text-center"
           />
           <button type="submit" className="bg-slate-900 text-white rounded-xl px-4 py-2 font-bold hover:bg-slate-800 active:scale-95 transition-all">+</button>
         </form>

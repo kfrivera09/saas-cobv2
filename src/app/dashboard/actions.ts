@@ -316,3 +316,50 @@ export async function cerrarCajaOficina() {
 
   revalidatePath("/dashboard");
 }
+
+export async function editarCobrador(formData: FormData) {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+  const email = formData.get("email") as string;
+
+  await prisma.user.update({
+    where: { id },
+    data: { name, email }
+  });
+
+  revalidatePath("/dashboard/cobradores");
+  redirect("/dashboard/cobradores");
+}
+
+export async function editarRuta(formData: FormData) {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+  const workerId = formData.get("workerId") as string || null;
+
+  await prisma.route.update({
+    where: { id },
+    data: { 
+      name, 
+      workerId: workerId === "none" ? null : workerId 
+    }
+  });
+
+  revalidatePath("/dashboard/rutas");
+  redirect("/dashboard/rutas");
+}
+
+export async function editarCliente(formData: FormData) {
+  const id = formData.get("id") as string;
+  const name = formData.get("name") as string;
+  const phone = formData.get("phone") as string;
+  const address = formData.get("address") as string;
+  const routeId = formData.get("routeId") as string;
+
+  await prisma.client.update({
+    where: { id },
+    data: { name, phone, address, routeId }
+  });
+
+  revalidatePath("/dashboard/clientes");
+  redirect("/dashboard/clientes");
+}

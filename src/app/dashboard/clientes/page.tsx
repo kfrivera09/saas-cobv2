@@ -112,7 +112,7 @@ export default async function ClientesPage() {
                         </Link>
 
                         <Link
-                          href={`/dashboard/clientes/editar/${cliente.id}`}
+                           href={`/dashboard/clientes/${cliente.id}/editar`}
                           className="text-blue-600 hover:text-blue-800 text-[10px] font-black uppercase tracking-tighter"
                         >
                           Editar

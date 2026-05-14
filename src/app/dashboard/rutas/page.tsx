@@ -62,7 +62,7 @@ export default async function RutasPage() {
                 </td>
                 <td className="p-4">
                   <div className="flex justify-center gap-3">
-                    <Link href={`/dashboard/rutas/editar/${ruta.id}`} className="text-blue-600 text-xs font-black uppercase">
+                    <Link href={`/dashboard/rutas/${ruta.id}/editar`} className="text-blue-600 text-xs font-black uppercase">
                       Editar
                     </Link>
                     <BotonEliminarRuta
