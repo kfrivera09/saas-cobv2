@@ -1,13 +1,20 @@
 import { getServerSession } from "next-auth";
-import { prisma } from "../../lib/prisma"; 
+import { prisma } from "../../lib/prisma";
 import { iniciarJornada } from "./actions";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export default async function CobradorPage() {
   const session = await getServerSession();
-  
+
+  // 👈 Paso 2: Validación crítica antes de llamar a Prisma
+  if (!session?.user?.email) {
+    redirect("/auth/login");
+  }
+
+  // Ahora es seguro usar session.user.email porque ya validamos que existe
   const usuario = await prisma.user.findUnique({
-    where: { email: session?.user?.email as string }
+    where: { email: session.user.email }
   });
 
   if (!usuario) return <div className="p-10 text-center text-red-500 font-bold">Error de sesión</div>;
@@ -20,7 +27,7 @@ export default async function CobradorPage() {
   return (
     <div className="space-y-6">
       <header className="py-4">
-        <h2 className="text-2xl font-black text-slate-800">Hola, {usuario.name.split(' ')[0]} 👋</h2>
+        <h2 className="text-2xl font-black text-slate-800">Hola, {usuario.name.split(' ')} 👋</h2>
         <p className="text-slate-500 text-sm font-medium">Gestión de Cobranza en Terreno</p>
       </header>
 
@@ -40,17 +47,17 @@ export default async function CobradorPage() {
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Efectivo de Base (Suelto)</label>
               <div className="relative mt-1">
                 <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-slate-400">$</span>
-                <input 
-                  type="number" 
-                  name="baseAmount" 
-                  placeholder="0.00" 
+                <input
+                  type="number"
+                  name="baseAmount"
+                  placeholder="0.00"
                   required
                   step="0.01"
                   className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 pl-10 font-black text-slate-800 focus:border-blue-500 focus:outline-none transition-all"
                 />
               </div>
             </div>
-            <button 
+            <button
               type="submit"
               className="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl shadow-lg active:scale-95 transition-all"
             >
@@ -71,7 +78,7 @@ export default async function CobradorPage() {
               </div>
               <div className="text-right">
                 <p className="text-green-100 text-[10px] uppercase font-bold">Iniciado a las</p>
-                <p className="text-sm font-bold">{new Date(jornadaActiva.openedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                <p className="text-sm font-bold">{new Date(jornadaActiva.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
             </div>
           </div>

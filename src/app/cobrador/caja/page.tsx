@@ -1,10 +1,10 @@
 import { getServerSession } from "next-auth";
-import { prisma } from "../../../lib/prisma"; 
+import { prisma } from "../../../lib/prisma";
 import { cerrarJornadaConBlindDrop, registrarGasto } from "../actions";
 
 export default async function CajaCobradorPage() {
   const session = await getServerSession();
-  
+
   const usuario = await prisma.user.findUnique({
     where: { email: session?.user?.email as string }
   });
@@ -98,18 +98,18 @@ export default async function CajaCobradorPage() {
           <span className="text-2xl">🛵</span>
         </h3>
         <form action={registrarGasto} className="flex gap-2">
-          <input 
-            type="text" 
-            name="description" 
-            placeholder="Ej. Gasolina" 
+          <input
+            type="text"
+            name="description"
+            placeholder="Ej. Gasolina"
             required
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-black font-medium focus:outline-none focus:border-blue-500"
           />
-          <input 
-            type="number" 
-            name="amount" 
+          <input
+            type="number"
+            name="amount"
             step="0.01"
-            placeholder="$ 0.00" 
+            placeholder="$ 0.00"
             required
             className="w-24 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-black font-bold focus:outline-none focus:border-blue-500 text-center"
           />
@@ -156,17 +156,27 @@ export default async function CajaCobradorPage() {
         <form action={cerrarJornadaConBlindDrop} className="space-y-4">
           <div className="relative">
             <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl text-slate-400 font-black">$</span>
-            <input 
-              type="number" 
-              name="reportedCash" 
+            <input
+              type="number"
+              name="reportedCash"
               step="0.01"
               required
               placeholder="0.00"
               className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl py-4 pl-12 pr-4 text-3xl font-black text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-colors text-center"
             />
           </div>
-          
-          <button 
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Foto del Recibo (Opcional) 📸</label>
+            <input
+              type="file"
+              name="photo"
+              accept="image/*"
+              capture="environment"
+              className="w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-slate-100 file:text-slate-700"
+            />
+          </div>
+
+          <button
             type="submit"
             className="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl hover:bg-slate-800 active:scale-95 transition-all shadow-lg flex justify-center items-center gap-2"
           >

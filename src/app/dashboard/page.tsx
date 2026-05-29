@@ -36,11 +36,12 @@ export default async function DashboardPage() {
     recaudoCalleQuery,
     recaudoOficinaQuery,
     cierresAprobados,
-    panicos
+    panicos,
+    gastosDetallados
   ] = await Promise.all([
-    prisma.loan.count({ where: { tenantId: admin.tenantId } }),
-    prisma.client.count({ where: { tenantId: admin.tenantId } }),
-    
+    prisma.loan.count({ where: { tenantId: admin.tenantId, status: { not: "CANCELLED" } } }),
+    prisma.client.count({ where: { tenantId: admin.tenantId, active: true } }),
+
     // Cierres de calle esperando aprobación
     prisma.workdayClosure.findMany({
       where: { status: "PENDING_APPROVAL", workday: { tenantId: admin.tenantId } },
@@ -81,7 +82,20 @@ export default async function DashboardPage() {
     prisma.panicAlert.findMany({
       where: { status: "PENDING", workday: { tenantId: admin.tenantId } },
       include: { workday: { include: { worker: true } } }
+    }),
+
+    //Gastos con foto
+    prisma.expense.findMany({
+      where: {
+        createdAt: { gte: hoy },
+        workday: { tenantId: admin.tenantId }
+      },
+      include: {
+        workday: { include: { worker: true } }
+      },
+      orderBy: { createdAt: 'desc' }
     })
+
   ]);
 
   const montoCalle = recaudoCalleQuery._sum.amount || 0;
@@ -113,8 +127,8 @@ export default async function DashboardPage() {
   const centroInicial: [number, number] = puntosPanicos.length > 0
     ? [puntosPanicos[0].lat, puntosPanicos[0].lng]
     : puntosCobradores.length > 0
-    ? [puntosCobradores[0].lat, puntosCobradores[0].lng]
-    : [4.6097, -74.0817];
+      ? [puntosCobradores[0].lat, puntosCobradores[0].lng]
+      : [4.6097, -74.0817];
 
   return (
     <div className="space-y-10 pb-20">
@@ -248,6 +262,55 @@ export default async function DashboardPage() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* --- SECCIÓN: DETALLE DE GASTOS DE HOY --- */}
+      <section className="space-y-6">
+        <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+          💸 Detalle de Gastos (Hoy)
+        </h3>
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50/80">
+              <tr>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cobrador / Motivo</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Monto</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Evidencia</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {gastosDetallados.length === 0 ? (
+                <tr><td colSpan={3} className="p-10 text-center text-slate-400 italic">No hay gastos registrados hoy.</td></tr>
+              ) : (
+                gastosDetallados.map((gasto) => (
+                  <tr key={gasto.id} className="hover:bg-red-50/30 transition-colors">
+                    <td className="p-5">
+                      <p className="font-bold text-slate-800">{gasto.workday.worker.name}</p>
+                      <p className="text-xs text-slate-500">{gasto.description}</p>
+                    </td>
+                    <td className="p-5 text-right font-black text-red-600">
+                      -${recapitular(gasto.amount)}
+                    </td>
+                    <td className="p-5 text-center">
+                      {gasto.evidencePhoto ? (
+                        <a
+                          href={gasto.evidencePhoto}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-blue-50 text-blue-600 font-black px-4 py-2 rounded-xl text-[10px] uppercase hover:bg-blue-600 hover:text-white transition-all shadow-sm inline-flex items-center gap-1"
+                        >
+                          📸 Ver Foto
+                        </a>
+                      ) : (
+                        <span className="text-[9px] text-slate-300 font-bold uppercase italic">Sin Foto</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 

@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Forzar de manera global que los elementos de formulario tengan texto oscuro */
+input, select, textarea {
+  color: #171717 !important;
+}
+
+/* Forzar que los placeholders tengan un tono gris legible */
+input::placeholder, textarea::placeholder {
+  color: #9ca3af !important; /* Equivalente a text-gray-400 */
+}

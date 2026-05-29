@@ -331,6 +331,47 @@ export async function editarCobrador(formData: FormData) {
   redirect("/dashboard/cobradores");
 }
 
+export async function crearCobrador(formData: FormData) {
+  "use server";
+  
+  const session = await getServerSession();
+  const admin = await prisma.user.findUnique({ where: { email: session?.user?.email! } });
+  
+  if (!admin || !admin.tenantId) {
+    throw new Error("No autorizado");
+  }
+
+  const name = formData.get("name") as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  // Verificamos que el correo no esté registrado previamente
+  const usuarioExistente = await prisma.user.findUnique({
+    where: { email }
+  });
+
+  if (usuarioExistente) {
+    throw new Error("El correo electrónico ya está en uso.");
+  }
+
+  // Encriptamos la contraseña con el bcrypt que ya tienes importado arriba
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Creamos el usuario asignándole el rol WORKER
+  await prisma.user.create({
+    data: {
+      name,
+      email,
+      password: hashedPassword,
+      role: "WORKER",
+      tenantId: admin.tenantId,
+    }
+  });
+
+  revalidatePath("/dashboard/cobradores");
+  redirect("/dashboard/cobradores");
+}
+
 export async function editarRuta(formData: FormData) {
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;

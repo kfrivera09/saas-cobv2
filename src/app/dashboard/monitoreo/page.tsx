@@ -1,12 +1,12 @@
 import { getServerSession } from "next-auth";
-import { prisma } from "../../../lib/prisma"; 
+import { prisma } from "../../../lib/prisma";
 
 export default async function MonitoreoPage() {
   const session = await getServerSession();
-  
+
   // 1. Buscamos al usuario de forma segura
   const userEmail = session?.user?.email;
-  
+
   if (!userEmail) {
     return <div className="p-10 text-center font-bold">Sesión no encontrada</div>;
   }
@@ -21,10 +21,10 @@ export default async function MonitoreoPage() {
   let alertas: any[] = [];
   try {
     alertas = await prisma.panicAlert.findMany({
-      include: { 
+      include: {
         workday: {
           include: { worker: true }
-        } 
+        }
       },
       orderBy: { createdAt: 'desc' },
       take: 5
@@ -35,24 +35,24 @@ export default async function MonitoreoPage() {
 
   // 3. Traemos los cobros (Lo que Kevin hace en la calle)
   let ultimosPagos: any[] = [];
-  try {
-    ultimosPagos = await prisma.installment.findMany({
-      where: { 
-        amountPaid: { gt: 0 }
-      },
-      include: { 
-        loan: { 
-          include: { 
-            client: true 
-          } 
-        } 
-      },
-      orderBy: { id: 'desc' },
-      take: 10
-    });
-  } catch (error) {
-    console.error("Error en la consulta de Prisma:", error);
-  }
+try {
+  // 🚀 CAMBIO CLAVE: Consultamos la tabla 'collection' en lugar de 'installment'
+  ultimosPagos = await prisma.collection.findMany({
+    // Al ser la tabla Collection, ya sabemos que son pagos realizados
+    include: {
+      loan: {
+        include: {
+          client: true // Traemos el cliente para mostrar su nombre
+        }
+      }
+    },
+    // Ordenamos por fecha de creación (la más reciente primero) [cite: 665]
+    orderBy: { createdAt: 'desc' }, 
+    take: 10
+  });
+} catch (error) {
+  console.error("Error en la consulta de Prisma:", error);
+}
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8">
@@ -126,14 +126,28 @@ export default async function MonitoreoPage() {
                     </td>
                     <td className="p-5 text-right">
                       <p className="text-lg font-black text-green-600">
-                        +${pago.amountPaid.toFixed(0)}
+                        +${pago.amount.toFixed(0)}
                       </p>
                     </td>
                     <td className="p-5 text-right">
                       <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
-                        {/* AQUÍ ESTÁ LA CORRECCIÓN: Usamos createdAt en lugar de updatedAt */}
-                        {new Date(pago.createdAt || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {new Date(pago.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                    </td>
+                    {/* 🚀 NUEVA COLUMNA: Botón de Evidencia Fotográfica */}
+                    <td className="p-5 text-center">
+                      {pago.evidencePhoto ? (
+                        <a
+                          href={pago.evidencePhoto}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-blue-50 text-blue-600 font-black px-3 py-2 rounded-xl text-[10px] uppercase hover:bg-blue-600 hover:text-white transition-all inline-flex items-center gap-1 shadow-sm"
+                        >
+                          📸 Ver Foto
+                        </a>
+                      ) : (
+                        <span className="text-[9px] text-slate-300 font-bold uppercase italic">Sin Foto</span>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl= env("DIRECT_URL")
 }
 // ------------------------------------------------------
 // 1. CONFIGURACIÓN Y MULTI-TENANT
@@ -92,7 +93,7 @@ model Loan {
   frequency     String   // "DAILY" | "WEEKLY"
   
   installments  Installment[]
-  
+  collections   Collection[]
   status        String   @default("ACTIVE") // "ACTIVE" | "PAID"
   createdAt     DateTime @default(now())
 }
@@ -141,10 +142,10 @@ model Collection {
   
   amount      Float
   loanId      String   // Referencia al préstamo abonado
-  
+  loan        Loan     @relation(fields: [loanId], references: [id])
   lat         Float?   // Tracking de dónde se hizo el cobro
   lng         Float?
-  
+  evidencePhoto String?
   createdAt   DateTime @default(now())
 }
 
@@ -155,7 +156,7 @@ model Expense {
   
   amount      Float
   description String
-  
+  evidencePhoto String?
   createdAt   DateTime @default(now())
 }
 
