@@ -1,9 +1,12 @@
-// src/middleware.ts
-export { default } from "next-auth/middleware";
+import { withAuth } from "next-auth/middleware";
+
+export default withAuth({
+  callbacks: {
+    authorized: ({ token }) => !!token,
+  },
+});
 
 export const config = {
-  // Define aquí las rutas que deseas proteger.
-  // El asterisco (*) asegura que todas las subrutas también estén protegidas.
   matcher: [
     "/dashboard/:path*",
     "/cobrador/:path*"
