@@ -26,24 +26,29 @@ export default async function CobradoresPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* 1. Encabezado responsivo: flex-col en móvil, flex-row en escritorio */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Equipo de Cobradores</h2>
         <Link
           href="/dashboard/cobradores/nuevo"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm font-bold"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm font-bold w-full sm:w-auto text-center"
         >
           + Nuevo Cobrador
         </Link>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      {/* 2. Contenedor de la tabla con overflow-x-auto */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-x-auto">
+        
+        {/* 3. Tabla con min-w-[800px] */}
+        <table className="w-full min-w-[800px] text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="p-4 text-sm font-semibold text-gray-600">Nombre</th>
-              <th className="p-4 text-sm font-semibold text-gray-600">Correo Electrónico</th>
-              <th className="p-4 text-sm font-semibold text-gray-600">Rutas Asignadas</th>
-              <th className="p-4 text-sm font-semibold text-gray-600 text-center">Acciones</th>
+              {/* 4. whitespace-nowrap en encabezados */}
+              <th className="p-4 text-sm font-semibold text-gray-600 whitespace-nowrap">Nombre</th>
+              <th className="p-4 text-sm font-semibold text-gray-600 whitespace-nowrap">Correo Electrónico</th>
+              <th className="p-4 text-sm font-semibold text-gray-600 whitespace-nowrap">Rutas Asignadas</th>
+              <th className="p-4 text-sm font-semibold text-gray-600 text-center whitespace-nowrap">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -56,9 +61,12 @@ export default async function CobradoresPage() {
             ) : (
               cobradores.map((cobrador) => (
                 <tr key={cobrador.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                  <td className="p-4 font-medium text-gray-800">{cobrador.name}</td>
-                  <td className="p-4 text-gray-600">{cobrador.email}</td>
-                  <td className="p-4 text-gray-600">
+                  {/* whitespace-nowrap en celdas de texto */}
+                  <td className="p-4 font-medium text-gray-800 whitespace-nowrap">{cobrador.name}</td>
+                  <td className="p-4 text-gray-600 whitespace-nowrap">{cobrador.email}</td>
+                  
+                  {/* Aquí usamos min-w-[200px] para que los tags de las rutas puedan envolverse (flex-wrap) bien si hay muchos */}
+                  <td className="p-4 text-gray-600 min-w-[200px]">
                     {cobrador.routes.length > 0 ? (
                       <div className="flex gap-1 flex-wrap">
                         {cobrador.routes.map(ruta => (
@@ -68,10 +76,11 @@ export default async function CobradoresPage() {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-xs italic">Sin ruta</span>
+                      <span className="text-gray-400 text-xs italic whitespace-nowrap">Sin ruta</span>
                     )}
                   </td>
-                  <td className="p-4">
+                  
+                  <td className="p-4 whitespace-nowrap">
                     <div className="flex justify-center items-center gap-3">
                       {/* BOTÓN EDITAR */}
                       <Link

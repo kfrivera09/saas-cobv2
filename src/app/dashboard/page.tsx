@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "../../lib/prisma";
 import { aprobarCierre, resolverAlerta } from "./actions";
-import { iniciarJornada } from "../cobrador/actions"; // Importación necesaria para el botón [cite: 702]
+import { iniciarJornada } from "../cobrador/actions"; 
 import DashboardMapWrapper from "../../components/DashboardMapWrapper";
 
 export default async function DashboardPage() {
@@ -16,7 +16,7 @@ export default async function DashboardPage() {
 
   if (!admin || !admin.tenantId) return <div className="p-10">Error de configuración de empresa.</div>;
 
-  // Busca si el Admin tiene su propia jornada abierta [cite: 703]
+  // Busca si el Admin tiene su propia jornada abierta
   const miJornada = await prisma.workday.findFirst({
     where: { workerId: admin.id, status: "OPEN" }
   });
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
-  // 1. Consultas Globales con separación contable (Calle vs Oficina) [cite: 703, 704]
+  // 1. Consultas Globales con separación contable (Calle vs Oficina)
   const [
     pCount,
     cCount,
@@ -49,7 +49,7 @@ export default async function DashboardPage() {
       orderBy: { createdAt: 'desc' }
     }),
 
-    // Monitoreo de jornadas abiertas (Live GPS) [cite: 704, 705]
+    // Monitoreo de jornadas abiertas (Live GPS)
     prisma.workday.findMany({
       where: { tenantId: admin.tenantId, status: "OPEN" },
       include: {
@@ -60,25 +60,25 @@ export default async function DashboardPage() {
       }
     }),
 
-    // RECAUDACIÓN EN CALLE (Usuarios con rol WORKER) [cite: 705]
+    // RECAUDACIÓN EN CALLE (Usuarios con rol WORKER)
     prisma.collection.aggregate({
       where: { workday: { status: "OPEN", worker: { role: "WORKER" }, tenantId: admin.tenantId } },
       _sum: { amount: true }
     }),
 
-    // RECAUDACIÓN EN OFICINA (Usuarios con rol ADMIN) [cite: 706]
+    // RECAUDACIÓN EN OFICINA (Usuarios con rol ADMIN)
     prisma.collection.aggregate({
       where: { workday: { status: "OPEN", worker: { role: "ADMIN" }, tenantId: admin.tenantId } },
       _sum: { amount: true }
     }),
 
-    // CAJA FUERTE (Dinero físico ya aprobado) [cite: 706]
+    // CAJA FUERTE (Dinero físico ya aprobado)
     prisma.workdayClosure.aggregate({
       where: { status: "APPROVED", workday: { tenantId: admin.tenantId } },
       _sum: { safeDeposit: true }
     }),
 
-    // Emergencias activas [cite: 707]
+    // Emergencias activas
     prisma.panicAlert.findMany({
       where: { status: "PENDING", workday: { tenantId: admin.tenantId } },
       include: { workday: { include: { worker: true } } }
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
   const montoOficina = recaudoOficinaQuery._sum.amount || 0;
   const cajaFuerteTotal = cierresAprobados._sum.safeDeposit || 0;
 
-  // 2. Preparar datos para el Mapa [cite: 707, 708]
+  // 2. Preparar datos para el Mapa
   const puntosCobradores = activos
     .filter(j => j.locations.length > 0)
     .map(j => ({
@@ -132,46 +132,46 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-10 pb-20">
-      {/* 🔓 BLOQUE DE INICIO DE JORNADA PARA ADMIN (El Botón) [cite: 709, 710] */}
+      {/* 🔓 BLOQUE DE INICIO DE JORNADA PARA ADMIN */}
       {!miJornada && (
         <div className="bg-orange-50 border-2 border-orange-200 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg shadow-orange-100">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🏛️</span>
+          <div className="flex items-center gap-4 text-center md:text-left">
+            <span className="text-4xl hidden sm:block">🏛️</span>
             <div>
               <h3 className="text-xl font-black text-orange-800">Oficina Cerrada</h3>
               <p className="text-orange-600 text-sm font-medium">Debes abrir tu turno para registrar recaudos en escritorio.</p>
             </div>
           </div>
-          <form action={iniciarJornada} className="flex gap-3 w-full md:w-auto">
+          <form action={iniciarJornada} className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <input
               type="number"
               name="baseAmount"
               placeholder="Base $"
-              className="w-24 bg-white border border-orange-200 rounded-xl p-3 text-sm font-bold"
+              className="w-full sm:w-24 bg-white border border-orange-200 rounded-xl p-3 text-sm font-bold text-center sm:text-left"
               required
             />
-            <button type="submit" className="bg-orange-600 text-white font-black px-6 py-3 rounded-xl text-xs uppercase">
+            <button type="submit" className="w-full sm:w-auto bg-orange-600 text-white font-black px-6 py-3 rounded-xl text-xs uppercase text-center">
               Abrir Oficina 🔓
             </button>
           </form>
         </div>
       )}
 
-      {/* SECCIÓN DE EMERGENCIAS [cite: 711, 712] */}
+      {/* SECCIÓN DE EMERGENCIAS */}
       {panicos.length > 0 && (
         <section className="space-y-4">
-          <div className="bg-red-600 p-6 rounded-[2.5rem] shadow-2xl animate-pulse">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">🚨 EMERGENCIAS ACTIVAS</h2>
+          <div className="bg-red-600 p-4 sm:p-6 rounded-[2.5rem] shadow-2xl animate-pulse">
+            <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-3">🚨 EMERGENCIAS ACTIVAS</h2>
             <div className="mt-6 space-y-3">
               {panicos.map(p => (
-                <div key={p.id} className="bg-white/10 backdrop-blur-md p-4 rounded-2xl flex items-center justify-between border border-white/20">
+                <div key={p.id} className="bg-white/10 backdrop-blur-md p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-white/20">
                   <div className="text-white">
                     <p className="font-black text-lg">{p.workday.worker.name}</p>
                     <p className="text-xs font-bold text-red-200">Alerta a las {new Date(p.createdAt).toLocaleTimeString()}</p>
                   </div>
-                  <form action={resolverAlerta}>
+                  <form action={resolverAlerta} className="w-full sm:w-auto">
                     <input type="hidden" name="panicId" value={p.id} />
-                    <button type="submit" className="bg-white text-red-600 font-black px-4 py-2 rounded-xl text-xs uppercase shadow-lg">RESOLVER ✅</button>
+                    <button type="submit" className="w-full sm:w-auto bg-white text-red-600 font-black px-4 py-2 rounded-xl text-xs uppercase shadow-lg">RESOLVER ✅</button>
                   </form>
                 </div>
               ))}
@@ -180,10 +180,11 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* MÉTRICAS GLOBALES CON 5 COLUMNAS [cite: 714-717] */}
+      {/* MÉTRICAS GLOBALES CON COLUMNAS ADAPTABLES */}
       <div className="space-y-6">
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">Panel de Control 🏛️</h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {/* Cambiado a: 1 col móvil, 2 col tablet, 5 col desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm">
             <h3 className="text-slate-400 text-[9px] font-black uppercase tracking-widest">Préstamos</h3>
             <p className="text-3xl font-black text-slate-800 mt-1">{pCount}</p>
@@ -205,7 +206,7 @@ export default async function DashboardPage() {
             <p className="text-[8px] text-slate-400 font-bold mt-1 uppercase">En escritorio 🖥️</p>
           </div>
           {/* CAJA FUERTE */}
-          <div className="bg-slate-900 p-5 rounded-3xl shadow-xl relative overflow-hidden border border-slate-800">
+          <div className="bg-slate-900 p-5 rounded-3xl shadow-xl relative overflow-hidden border border-slate-800 sm:col-span-2 lg:col-span-1">
             <div className="relative z-10">
               <h3 className="text-green-400 text-[9px] font-black uppercase tracking-widest">Caja Fuerte</h3>
               <p className="text-3xl font-black text-white mt-1">${recapitular(cajaFuerteTotal)}</p>
@@ -215,13 +216,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* MAPA [cite: 718] */}
+      {/* MAPA */}
       <section className="space-y-6">
         <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">🌍 Mapa de Operaciones en Vivo</h3>
         <DashboardMapWrapper puntos={puntosMapa} center={centroInicial} />
       </section>
 
-      {/* MONITOR DE PERSONAL [cite: 718-724] */}
+      {/* MONITOR DE PERSONAL */}
       <section className="space-y-6">
         <h3 className="text-xl font-black text-slate-800">🛰️ Monitor de Personal</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -236,10 +237,10 @@ export default async function DashboardPage() {
               <div key={jornada.id} className="bg-white rounded-[2rem] border border-slate-100 shadow-lg overflow-hidden flex flex-col group">
                 <div className="p-6 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
                   <div>
-                    <p className="font-black text-slate-800 text-lg">{jornada.worker.name}</p>
+                    <p className="font-black text-slate-800 text-lg truncate pr-2">{jornada.worker.name}</p>
                     <span className="text-[9px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-black uppercase">Turno Abierto</span>
                   </div>
-                  <div className="text-2xl">👤</div>
+                  <div className="text-2xl shrink-0">👤</div>
                 </div>
                 <div className="p-6 space-y-3 flex-1">
                   <div className="flex justify-between text-sm"><span className="text-slate-400">Base</span><span className="font-black text-slate-700">${recapitular(jornada.baseAmount)}</span></div>
@@ -252,11 +253,11 @@ export default async function DashboardPage() {
                 </div>
                 <div className={`px-6 py-3 border-t flex justify-between items-center ${minutos !== null && minutos < 10 ? 'bg-green-50' : 'bg-slate-50'}`}>
                   <div className="flex items-center gap-2">
-                    <span className={`flex h-2 w-2 rounded-full ${minutos !== null && minutos < 10 ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></span>
+                    <span className={`flex h-2 w-2 shrink-0 rounded-full ${minutos !== null && minutos < 10 ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`}></span>
                     <p className="text-[10px] font-black text-slate-600 uppercase">{minutos !== null ? `Hace ${minutos} min` : 'Sin señal GPS'}</p>
                   </div>
                   {ultimaLoc.length > 0 && (
-                    <a href={`https://www.google.com/maps?q=${ultimaLoc[0].lat},${ultimaLoc[0].lng}`} target="_blank" className="text-[9px] font-bold text-blue-600 underline uppercase">Google Maps</a>
+                    <a href={`https://www.google.com/maps?q=${ultimaLoc[0].lat},${ultimaLoc[0].lng}`} target="_blank" className="text-[9px] font-bold text-blue-600 underline uppercase whitespace-nowrap">Google Maps</a>
                   )}
                 </div>
               </div>
@@ -270,13 +271,15 @@ export default async function DashboardPage() {
         <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
           💸 Detalle de Gastos (Hoy)
         </h3>
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
-          <table className="w-full text-left">
+        {/* Agregado overflow-x-auto */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-x-auto">
+          {/* Agregado min-w-[600px] */}
+          <table className="w-full min-w-[600px] text-left">
             <thead className="bg-slate-50/80">
               <tr>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cobrador / Motivo</th>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Monto</th>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Evidencia</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Cobrador / Motivo</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right whitespace-nowrap">Monto</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Evidencia</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -285,14 +288,14 @@ export default async function DashboardPage() {
               ) : (
                 gastosDetallados.map((gasto) => (
                   <tr key={gasto.id} className="hover:bg-red-50/30 transition-colors">
-                    <td className="p-5">
-                      <p className="font-bold text-slate-800">{gasto.workday.worker.name}</p>
-                      <p className="text-xs text-slate-500">{gasto.description}</p>
+                    <td className="p-5 min-w-[200px]">
+                      <p className="font-bold text-slate-800 whitespace-nowrap">{gasto.workday.worker.name}</p>
+                      <p className="text-xs text-slate-500 whitespace-nowrap">{gasto.description}</p>
                     </td>
-                    <td className="p-5 text-right font-black text-red-600">
+                    <td className="p-5 text-right font-black text-red-600 whitespace-nowrap">
                       -${recapitular(gasto.amount)}
                     </td>
-                    <td className="p-5 text-center">
+                    <td className="p-5 text-center whitespace-nowrap">
                       {gasto.evidencePhoto ? (
                         <a
                           href={gasto.evidencePhoto}
@@ -314,17 +317,19 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* AUDITORÍA DE LIQUIDACIONES [cite: 724-729] */}
+      {/* AUDITORÍA DE LIQUIDACIONES */}
       <section className="space-y-6">
         <h3 className="text-xl font-black text-slate-800">🔍 Auditoría de Liquidaciones</h3>
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
-          <table className="w-full text-left">
+        {/* Agregado overflow-x-auto */}
+        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-x-auto">
+          {/* Agregado min-w-[800px] */}
+          <table className="w-full min-w-[800px] text-left">
             <thead className="bg-slate-50/80">
               <tr>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Cobrador</th>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Reportado</th>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Diferencia</th>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Acción</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Cobrador</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right whitespace-nowrap">Reportado</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right whitespace-nowrap">Diferencia</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -333,22 +338,23 @@ export default async function DashboardPage() {
               ) : (
                 cierres.map((c) => (
                   <tr key={c.id}>
-                    <td className="p-5">
+                    <td className="p-5 whitespace-nowrap">
                       <p className="font-extrabold text-slate-800">{c.workday.worker.name}</p>
                       <p className="text-[10px] text-slate-400 uppercase">{new Date(c.createdAt).toLocaleString()}</p>
                     </td>
-                    <td className="p-5 text-right font-black text-slate-700 text-lg">${recapitular(c.reportedCash)}</td>
-                    <td className="p-5 text-right">
+                    <td className="p-5 text-right font-black text-slate-700 text-lg whitespace-nowrap">${recapitular(c.reportedCash)}</td>
+                    <td className="p-5 text-right whitespace-nowrap">
                       <span className={`font-black px-3 py-1 rounded-full text-[10px] uppercase ${c.difference < 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
                         {c.difference > 0 ? '+' : ''}${recapitular(c.difference)}
                       </span>
                     </td>
-                    <td className="p-5">
-                      <form action={aprobarCierre} className="flex gap-2 items-center justify-center">
+                    <td className="p-5 whitespace-nowrap">
+                      {/* Flex wrap y justificado para evitar amontonamiento */}
+                      <form action={aprobarCierre} className="flex flex-wrap gap-2 items-center justify-center">
                         <input type="hidden" name="cierreId" value={c.id} />
                         <input type="hidden" name="reportedCash" value={c.reportedCash} />
-                        <input type="number" name="rolloverAmount" defaultValue={20} className="w-16 border rounded-lg p-1.5 text-xs font-black text-center" />
-                        <button type="submit" className="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-xl hover:bg-blue-600 transition-all">APROBAR</button>
+                        <input type="number" name="rolloverAmount" defaultValue={20} className="w-20 border rounded-lg p-2 text-xs font-black text-center" />
+                        <button type="submit" className="bg-slate-900 text-white text-[10px] font-black px-4 py-2.5 rounded-xl hover:bg-blue-600 transition-all">APROBAR</button>
                       </form>
                     </td>
                   </tr>

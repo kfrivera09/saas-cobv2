@@ -35,27 +35,27 @@ export default async function MonitoreoPage() {
 
   // 3. Traemos los cobros (Lo que Kevin hace en la calle)
   let ultimosPagos: any[] = [];
-try {
-  // 🚀 CAMBIO CLAVE: Consultamos la tabla 'collection' en lugar de 'installment'
-  ultimosPagos = await prisma.collection.findMany({
-    // Al ser la tabla Collection, ya sabemos que son pagos realizados
-    include: {
-      loan: {
-        include: {
-          client: true // Traemos el cliente para mostrar su nombre
+  try {
+    // 🚀 CAMBIO CLAVE: Consultamos la tabla 'collection' en lugar de 'installment'
+    ultimosPagos = await prisma.collection.findMany({
+      // Al ser la tabla Collection, ya sabemos que son pagos realizados
+      include: {
+        loan: {
+          include: {
+            client: true // Traemos el cliente para mostrar su nombre
+          }
         }
-      }
-    },
-    // Ordenamos por fecha de creación (la más reciente primero) [cite: 665]
-    orderBy: { createdAt: 'desc' }, 
-    take: 10
-  });
-} catch (error) {
-  console.error("Error en la consulta de Prisma:", error);
-}
+      },
+      // Ordenamos por fecha de creación (la más reciente primero)
+      orderBy: { createdAt: 'desc' }, 
+      take: 10
+    });
+  } catch (error) {
+    console.error("Error en la consulta de Prisma:", error);
+  }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-8">
       <div className="mb-8">
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">Monitoreo en Vivo</h2>
         <p className="text-slate-500 font-medium">Visualizando los últimos movimientos y alertas de la red.</p>
@@ -73,7 +73,7 @@ try {
         ) : (
           <div className="space-y-3">
             {alertas.map((alerta) => (
-              <div key={alerta.id} className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex justify-between items-center shadow-sm">
+              <div key={alerta.id} className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
                 <div>
                   <p className="font-black text-red-700">PÁNICO ACTIVADO</p>
                   <p className="text-xs text-red-600 font-medium">
@@ -94,19 +94,25 @@ try {
         <h3 className="text-slate-700 font-bold mb-4 flex items-center gap-2">
           💰 Flujo de Caja en Vivo
         </h3>
-        <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-          <table className="w-full text-left">
+        {/* Cambiado overflow-hidden por overflow-x-auto */}
+        <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-x-auto">
+          {/* Añadido min-w-[700px] para forzar el scroll en móviles */}
+          <table className="w-full min-w-[700px] text-left">
             <thead>
               <tr className="bg-slate-50/50 border-b border-slate-100">
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Detalle Cliente</th>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Recaudado</th>
-                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Hora</th>
+                {/* Añadido whitespace-nowrap a todos los encabezados */}
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Detalle Cliente</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right whitespace-nowrap">Recaudado</th>
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right whitespace-nowrap">Hora</th>
+                {/* 🚀 NUEVO: Encabezado para la foto que faltaba en tu código original */}
+                <th className="p-5 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center whitespace-nowrap">Evidencia</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {ultimosPagos.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-20 text-center">
+                  {/* Ajustado colSpan a 4 por la nueva columna */}
+                  <td colSpan={4} className="p-20 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-4xl">😴</span>
                       <p className="text-slate-400 font-bold">Sin actividad hoy todavía</p>
@@ -116,7 +122,7 @@ try {
               ) : (
                 ultimosPagos.map((pago) => (
                   <tr key={pago.id} className="hover:bg-blue-50/30 transition-all group">
-                    <td className="p-5">
+                    <td className="p-5 whitespace-nowrap">
                       <p className="font-extrabold text-slate-700 group-hover:text-blue-600 transition-colors">
                         {pago.loan?.client?.name || "Cliente General"}
                       </p>
@@ -124,18 +130,18 @@ try {
                         ID: {pago.id.substring(0, 8)}
                       </p>
                     </td>
-                    <td className="p-5 text-right">
+                    <td className="p-5 text-right whitespace-nowrap">
                       <p className="text-lg font-black text-green-600">
                         +${pago.amount.toFixed(0)}
                       </p>
                     </td>
-                    <td className="p-5 text-right">
+                    <td className="p-5 text-right whitespace-nowrap">
                       <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
                         {new Date(pago.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </td>
                     {/* 🚀 NUEVA COLUMNA: Botón de Evidencia Fotográfica */}
-                    <td className="p-5 text-center">
+                    <td className="p-5 text-center whitespace-nowrap">
                       {pago.evidencePhoto ? (
                         <a
                           href={pago.evidencePhoto}

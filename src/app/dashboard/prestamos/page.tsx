@@ -20,26 +20,31 @@ export default async function PrestamosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* 1. Encabezado responsivo para móviles */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Control de Préstamos</h2>
         <Link 
           href="/dashboard/prestamos/nuevo" 
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm font-bold"
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors shadow-sm font-bold w-full sm:w-auto text-center"
         >
           + Nuevo Préstamo
         </Link>
       </div>
 
-      <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
+      {/* 2. Contenedor de la tabla con overflow-x-auto */}
+      <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-x-auto">
+        
+        {/* 3. Tabla con un ancho mínimo protegido */}
+        <table className="w-full min-w-[900px] text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</th>
-              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest">Capital</th>
-              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest">Total</th>
-              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest">Saldo</th>
-              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest text-center">Estado</th>
-              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Acciones</th>
+              {/* 4. whitespace-nowrap en todos los encabezados */}
+              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Cliente</th>
+              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Capital</th>
+              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Total</th>
+              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Saldo</th>
+              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest text-center whitespace-nowrap">Estado</th>
+              <th className="p-5 text-xs font-black text-gray-400 uppercase tracking-widest text-right whitespace-nowrap">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -55,18 +60,18 @@ export default async function PrestamosPage() {
                   key={prestamo.id} 
                   className={`hover:bg-gray-50/50 transition-colors ${prestamo.status === "CANCELLED" ? "opacity-50 grayscale bg-slate-50" : ""}`}
                 >
-                  <td className="p-5">
+                  <td className="p-5 whitespace-nowrap">
                     <p className="font-bold text-slate-800">{prestamo.client.name}</p>
                     <p className="text-[10px] text-slate-400 uppercase">{new Date(prestamo.createdAt).toLocaleDateString()}</p>
                   </td>
-                  <td className="p-5 text-slate-600 font-medium">${recapitular(prestamo.amount)}</td>
-                  <td className="p-5 text-slate-800 font-bold">${recapitular(prestamo.totalAmount)}</td>
-                  <td className="p-5">
+                  <td className="p-5 text-slate-600 font-medium whitespace-nowrap">${recapitular(prestamo.amount)}</td>
+                  <td className="p-5 text-slate-800 font-bold whitespace-nowrap">${recapitular(prestamo.totalAmount)}</td>
+                  <td className="p-5 whitespace-nowrap">
                     <p className={`font-black ${prestamo.balance > 0 ? "text-red-500" : "text-green-600"}`}>
                       ${recapitular(prestamo.balance)}
                     </p>
                   </td>
-                  <td className="p-5 text-center">
+                  <td className="p-5 text-center whitespace-nowrap">
                     {prestamo.status === "ACTIVE" && (
                       <span className="bg-blue-100 text-blue-700 text-[10px] px-3 py-1 rounded-full font-black uppercase">Activo</span>
                     )}
@@ -77,7 +82,7 @@ export default async function PrestamosPage() {
                       <span className="bg-slate-200 text-slate-600 text-[10px] px-3 py-1 rounded-full font-black uppercase">Anulado</span>
                     )}
                   </td>
-                  <td className="p-5">
+                  <td className="p-5 whitespace-nowrap">
                     <div className="flex justify-end items-center gap-4">
                       <Link 
                         href={`/dashboard/prestamos/${prestamo.id}`} 
