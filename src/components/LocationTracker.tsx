@@ -1,43 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { registrarUbicacion } from "../app/cobrador/actions";
 
 export default function LocationTracker() {
+  const watchIdRef = useRef<number | null>(null);
+
   useEffect(() => {
-    const enviar = () => {
-      console.log("🛰️ Iniciando ciclo de GPS...");
+    if (!navigator.geolocation) {
+      console.error("❌ Geolocation no soportada");
+      return;
+    }
 
-      if (!navigator.geolocation) {
-        console.error("❌ Geolocation no soportada");
-        return;
+    const enviar = async (lat: number, lng: number) => {
+      try {
+        await registrarUbicacion(lat, lng);
+      } catch (error) {
+        console.error("❌ Error al enviar ubicación:", error);
       }
-
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          console.log(`📍 Coordenadas capturadas: ${latitude}, ${longitude}`);
-          
-          try {
-            // Llamada a la Server Action
-            await registrarUbicacion(latitude, longitude);
-            console.log("✅ Servidor respondió correctamente");
-          } catch (error) {
-            console.error("❌ Error al enviar al servidor:", error);
-          }
-        },
-        (error) => {
-          console.error("❌ Error de GPS detalle:", error.message);
-          // Si ves este alert, el problema es el permiso del navegador
-          if (error.code === 1) alert("Por favor, permite el acceso al GPS en el candado de la barra de direcciones.");
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
     };
 
-    enviar();
-    const interval = setInterval(enviar, 300000); // 5 min
-    return () => clearInterval(interval);
+    const exito = (pos: GeolocationPosition) => {
+      const { latitude, longitude } = pos.coords;
+      enviar(latitude, longitude);
+    };
+
+    const error = (err: GeolocationPositionError) => {
+      if (err.code === 1) {
+        alert("Por favor, permite el acceso al GPS en el candado de la barra de direcciones.");
+      }
+    };
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      exito,
+      error,
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+    );
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
   }, []);
 
   return null;

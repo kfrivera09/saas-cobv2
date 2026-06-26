@@ -1,28 +1,37 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "../../../../lib/prisma";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import FormularioCliente from "../nuevo/FormularioClientes";
+import FormularioCliente from "./FormularioClientes";
 
 export default async function NuevoClientePage() {
   const session = await getServerSession();
+
+  // 1. Obtenemos la empresa (Tenant) del administrador actual
   const admin = await prisma.user.findUnique({
     where: { email: session?.user?.email as string },
   });
 
+  if (!admin?.tenantId) {
+    redirect("/auth/login"); // O manejar el error de otra manera
+  }
+
+  // 2. Buscamos las rutas de este Tenant para el select
   const rutas = await prisma.route.findMany({
-    where: { tenantId: admin?.tenantId },
+    where: {
+      tenantId: admin.tenantId,
+      active: true,
+    },
     orderBy: { name: 'asc' }
   });
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-black text-gray-800 tracking-tight">Registrar Nuevo Cliente</h2>
-          <p className="text-gray-500 text-sm">Asegura el punto de cobro con coordenadas GPS.</p>
-        </div>
-        <Link href="/dashboard/clientes" className="text-gray-400 hover:text-gray-800 font-bold text-sm">
-          ← Volver
+        <h2 className="text-2xl font-bold text-gray-800">Crear Nuevo Cliente</h2>
+        <Link href="/dashboard/clientes" className="text-gray-500 hover:text-gray-700 font-medium text-sm">
+          ← Volver a la lista
         </Link>
       </div>
 

@@ -14,9 +14,10 @@ export default async function CobradoresPage() {
 
   // 2. Buscamos a los usuarios que sean "WORKER" (Cobradores) de este Tenant
   const cobradores = await prisma.user.findMany({
-    where: {
+    where: { 
       tenantId: admin?.tenantId,
-      role: "WORKER"
+      role: "WORKER",
+      active: true
     },
     include: {
       routes: true // Traemos las rutas que tienen asignadas para visualización

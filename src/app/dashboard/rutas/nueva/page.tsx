@@ -16,7 +16,8 @@ export default async function NuevaRutaPage() {
   const cobradores = await prisma.user.findMany({
     where: { 
       tenantId: admin?.tenantId, 
-      role: "WORKER" 
+      role: "WORKER",
+      active: true
     },
     orderBy: { name: 'asc' }
   });

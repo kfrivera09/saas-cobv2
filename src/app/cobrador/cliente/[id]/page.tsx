@@ -31,6 +31,25 @@ export default async function DetalleClienteCobrador({ params }: { params: Promi
   const prestamo = cliente.loans[0];
   const cuotaHoy = prestamo?.installments[0];
 
+  if (!prestamo) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/cobrador/ruta" className="text-2xl text-gray-400">←</Link>
+          <h2 className="text-xl font-bold text-gray-800 truncate">{cliente.name}</h2>
+        </div>
+        <div className="bg-white p-10 rounded-3xl border border-gray-100 text-center space-y-4">
+          <span className="text-5xl">📭</span>
+          <h3 className="text-lg font-bold text-gray-800">Sin Préstamos Activos</h3>
+          <p className="text-sm text-gray-500">Este cliente no tiene préstamos activos en este momento.</p>
+          <Link href="/cobrador/ruta" className="inline-block bg-blue-600 text-white font-bold px-6 py-3 rounded-xl text-sm">
+            Volver a mi ruta
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const inicioHoy = new Date();
   inicioHoy.setHours(0, 0, 0, 0);
 
@@ -93,6 +112,12 @@ export default async function DetalleClienteCobrador({ params }: { params: Promi
 
     const cuota = await prisma.installment.findUnique({ where: { id: installmentId } });
     if (!cuota) return;
+
+    const prestamo = await prisma.loan.findUnique({ where: { id: loanId } });
+    if (!prestamo) return;
+    if (prestamo.balance < monto) {
+      throw new Error(`El saldo pendiente ($${prestamo.balance.toFixed(0)}) es menor al monto ingresado ($${monto.toFixed(0)}).`);
+    }
 
     // LÓGICA DE SUBIDA A SUPABASE STORAGE [cite: 680]
     let photoUrl = null;

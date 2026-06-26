@@ -27,7 +27,7 @@ export default async function CobradorPage() {
   return (
     <div className="space-y-6">
       <header className="py-4">
-        <h2 className="text-2xl font-black text-slate-800">Hola, {usuario.name.split(' ')} 👋</h2>
+        <h2 className="text-2xl font-black text-slate-800">Hola, {usuario.name.split(' ')[0]} 👋</h2>
         <p className="text-slate-500 text-sm font-medium">Gestión de Cobranza en Terreno</p>
       </header>
 

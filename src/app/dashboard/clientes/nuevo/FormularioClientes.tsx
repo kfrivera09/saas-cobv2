@@ -35,6 +35,16 @@ export default function FormularioCliente({ rutas }: { rutas: any[] }) {
         </div>
 
         <div>
+          <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Cédula</label>
+          <input name="cedula" type="text" placeholder="Ej. 001-000000-0000A" className="w-full bg-gray-50 p-4 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 outline-none" />
+        </div>
+
+        <div>
+          <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Celular</label>
+          <input name="celular" type="tel" placeholder="Ej. 8888 8888" className="w-full bg-gray-50 p-4 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 outline-none" />
+        </div>
+
+        <div>
           <label className="block text-xs font-black text-gray-400 uppercase mb-2 ml-1">Teléfono</label>
           <input name="phone" type="tel" placeholder="300 123 4567" className="w-full bg-gray-50 p-4 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>

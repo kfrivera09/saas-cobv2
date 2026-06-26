@@ -15,8 +15,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Cobradores", href: "/dashboard/cobradores" },
     { name: "Rutas", href: "/dashboard/rutas" },
     { name: "Clientes", href: "/dashboard/clientes" },
+    { name: "Prioridad", href: "/dashboard/prioridad" },
     { name: "Préstamos", href: "/dashboard/prestamos" },
     { name: "Monitoreo", href: "/dashboard/monitoreo" },
+    { name: "Cambiar Contraseña", href: "/dashboard/cambio-clave" },
   ];
 
   return (

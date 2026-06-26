@@ -40,6 +40,7 @@ model User {
   
   routes    Route[]
   workdays  Workday[]
+  active    Boolean  @default(true)
   
   createdAt DateTime @default(now())
 }
@@ -69,11 +70,14 @@ model Client {
   name      String
   phone     String?
   address   String
+  cedula    String?
+  celular   String?
   lat       Float?
   lng       Float?
   active    Boolean  @default(true)
   routeId   String
   route     Route    @relation(fields: [routeId], references: [id])
+  priority  Int      @default(0)
   loans     Loan[]
   createdAt DateTime @default(now())
 }
@@ -177,6 +181,7 @@ model WorkdayClosure {
   
   approvedAt      DateTime?
   approvedById    String?  // ID del Admin que lo revisó
+  evidencePhoto   String?
   
   createdAt       DateTime @default(now())
 }

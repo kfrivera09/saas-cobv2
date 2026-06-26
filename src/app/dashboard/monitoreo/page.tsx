@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { prisma } from "../../../lib/prisma";
+import { cancelarTurnoAdmin } from "../actions";
 
 export default async function MonitoreoPage() {
   const session = await getServerSession();
@@ -59,6 +60,16 @@ export default async function MonitoreoPage() {
       <div className="mb-8">
         <h2 className="text-3xl font-black text-slate-800 tracking-tight">Monitoreo en Vivo</h2>
         <p className="text-slate-500 font-medium">Visualizando los últimos movimientos y alertas de la red.</p>
+        {/* Botón para cancelar turno del administrador */}
+        <form action={cancelarTurnoAdmin} className="mt-4">
+          <button
+            type="submit"
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all active:scale-[0.98] text-sm"
+          >
+            ❌ Cancelar Turno Abierto
+          </button>
+          <p className="text-xs text-red-400 mt-1">Solo si se abrió por error, no realiza cierre de caja.</p>
+        </form>
       </div>
 
       {/* SECCIÓN DE ALERTAS DE PÁNICO */}

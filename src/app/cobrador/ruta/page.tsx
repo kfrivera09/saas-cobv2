@@ -12,9 +12,10 @@ export default async function MiRutaPage() {
       routes: {
         include: {
           clients: {
+            orderBy: { priority: 'asc' },
             include: {
               loans: {
-                where: { status: "ACTIVE" } // Solo préstamos vivos
+                where: { status: "ACTIVE" }
               }
             }
           }
@@ -51,9 +52,14 @@ export default async function MiRutaPage() {
                 key={cliente.id}
                 className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 transition-colors"
               >
-                <div className="flex-1 min-w-0 mr-4">
-                  <h3 className="font-bold text-gray-800 truncate">{cliente.name}</h3>
-                  <p className="text-xs text-gray-500 truncate">{cliente.address}</p>
+                <div className="flex items-center gap-3 flex-1 min-w-0 mr-4">
+                  <span className="shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold">
+                    {cliente.priority || clientes.indexOf(cliente) + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-gray-800 truncate">{cliente.name}</h3>
+                    <p className="text-xs text-gray-500 truncate">{cliente.address}</p>
+                  </div>
                 </div>
                 
                 <div className="text-right shrink-0">

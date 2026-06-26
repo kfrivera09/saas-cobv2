@@ -57,11 +57,9 @@ export async function resolverAlerta(formData: FormData) {
     where: { id: panicId },
     data: { 
       status: "RESOLVED",
-      // Opcional: podrías guardar quién lo resolvió o a qué hora
     }
   });
 
-  const { revalidatePath } = await import("next/cache");
   revalidatePath("/dashboard");
 }
 
@@ -69,8 +67,18 @@ export async function resolverAlerta(formData: FormData) {
 
 export async function eliminarCobrador(formData: FormData) {
   const id = formData.get("id") as string;
+
+  const jornadasAbiertas = await prisma.workday.findFirst({
+    where: { workerId: id, status: "OPEN" }
+  });
+  if (jornadasAbiertas) {
+    throw new Error("No puedes eliminar un cobrador con jornada abierta. Ciérrala primero.");
+  }
   
-  await prisma.user.delete({ where: { id } });
+  await prisma.user.update({
+    where: { id },
+    data: { active: false }
+  });
 
   revalidatePath("/dashboard/cobradores");
 }
@@ -104,6 +112,8 @@ export async function crearCliente(formData: FormData) {
   const name = formData.get("name") as string;
   const phone = formData.get("phone") as string;
   const address = formData.get("address") as string;
+  const cedula = formData.get("cedula") as string; // Nuevo campo
+  const celular = formData.get("celular") as string; // Nuevo campo
   const routeId = formData.get("routeId") as string;
   const lat = parseFloat(formData.get("lat") as string);
   const lng = parseFloat(formData.get("lng") as string);
@@ -113,6 +123,8 @@ export async function crearCliente(formData: FormData) {
       name,
       phone,
       address,
+      cedula, // Nuevo campo
+      celular, // Nuevo campo
       routeId,
       tenantId: admin.tenantId,
       lat: isNaN(lat) ? null : lat,
@@ -129,13 +141,11 @@ export async function eliminarCliente(formData: FormData) {
   const id = formData.get("id") as string;
 
   try {
-    // En lugar de borrar, cambiamos el estado a false
     await prisma.client.update({
       where: { id },
       data: { active: false }
     });
     
-    const { revalidatePath } = await import("next/cache");
     revalidatePath("/dashboard/clientes");
   } catch (error) {
     console.error("Error al desactivar cliente:", error);
@@ -238,7 +248,20 @@ export async function registrarPagoManualAdmin(formData: FormData) {
   const loanId = formData.get("loanId") as string;
   const amount = parseFloat(formData.get("amount") as string);
 
-  // 1. Buscamos o creamos la "Jornada de Oficina" del Admin
+  if (!amount || amount <= 0) return;
+
+  const prestamo = await prisma.loan.findUnique({ where: { id: loanId } });
+  if (!prestamo) return;
+  if (prestamo.balance < amount) {
+    throw new Error(`El saldo pendiente ($${prestamo.balance.toFixed(0)}) es menor al monto ingresado ($${amount.toFixed(0)}).`);
+  }
+
+  const cuota = await prisma.installment.findUnique({ where: { id: installmentId } });
+  if (!cuota) return;
+
+  const nuevoTotalPagado = cuota.amountPaid + amount;
+  const nuevoEstado = nuevoTotalPagado >= cuota.amountDue ? "PAID" : "PARTIAL";
+
   let jornadaOficina = await prisma.workday.findFirst({
     where: { workerId: admin.id, status: "OPEN" }
   });
@@ -254,19 +277,15 @@ export async function registrarPagoManualAdmin(formData: FormData) {
     });
   }
 
-  // 2. Registramos el pago en bloque (Transacción)
   await prisma.$transaction([
-    // A. Marcamos cuota pagada
     prisma.installment.update({
       where: { id: installmentId },
-      data: { status: "PAID", amountPaid: amount, paidAt: new Date() }
+      data: { status: nuevoEstado, amountPaid: nuevoTotalPagado, paidAt: new Date() }
     }),
-    // B. Restamos al saldo del préstamo
     prisma.loan.update({
       where: { id: loanId },
       data: { balance: { decrement: amount } }
     }),
-    // C. CREAMOS EL REGISTRO DE COLECCIÓN (Aquí se contabiliza)
     prisma.collection.create({
       data: {
         workdayId: jornadaOficina.id,
@@ -321,6 +340,11 @@ export async function editarCobrador(formData: FormData) {
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
+
+  const duplicado = await prisma.user.findUnique({ where: { email } });
+  if (duplicado && duplicado.id !== id) {
+    throw new Error("El correo electrónico ya está en uso por otro usuario.");
+  }
 
   await prisma.user.update({
     where: { id },
@@ -394,13 +418,63 @@ export async function editarCliente(formData: FormData) {
   const name = formData.get("name") as string;
   const phone = formData.get("phone") as string;
   const address = formData.get("address") as string;
+  const cedula = formData.get("cedula") as string;
+  const celular = formData.get("celular") as string;
   const routeId = formData.get("routeId") as string;
 
   await prisma.client.update({
     where: { id },
-    data: { name, phone, address, routeId }
+    data: { name, phone, address, cedula, celular, routeId }
   });
 
   revalidatePath("/dashboard/clientes");
   redirect("/dashboard/clientes");
+}
+
+export async function cambiarClave(formData: FormData) {
+  const session = await getServerSession();
+  const usuario = await prisma.user.findUnique({ where: { email: session?.user?.email! } });
+  if (!usuario) throw new Error("No autorizado");
+
+  const claveAnterior = formData.get("claveAnterior") as string;
+  const claveNueva = formData.get("claveNueva") as string;
+  const repetirClave = formData.get("repetirClave") as string;
+
+  const coincide = await bcrypt.compare(claveAnterior, usuario.password);
+  if (!coincide) throw new Error("La contraseña anterior no es correcta.");
+
+  if (claveNueva.length < 6) throw new Error("La nueva contraseña debe tener al menos 6 caracteres.");
+  if (claveNueva !== repetirClave) throw new Error("Las contraseñas nuevas no coinciden.");
+
+  const hashedPassword = await bcrypt.hash(claveNueva, 10);
+  await prisma.user.update({
+    where: { id: usuario.id },
+    data: { password: hashedPassword }
+  });
+
+  redirect("/dashboard/cambio-clave?exito=1");
+}
+
+export async function cancelarTurnoAdmin() {
+  "use server";
+  const session = await getServerSession();
+  const admin = await prisma.user.findUnique({ where: { email: session?.user?.email! } });
+  if (!admin) {
+    throw new Error("No autorizado para realizar esta acción.");
+  }
+
+  const jornadaAbierta = await prisma.workday.findFirst({
+    where: { workerId: admin.id, status: "OPEN" },
+  });
+
+  if (jornadaAbierta) {
+    await prisma.workday.update({
+      where: { id: jornadaAbierta.id },
+      data: { status: "CLOSED", closedAt: new Date() },
+    });
+    console.log(`✅ Turno del administrador ${admin.name} cancelado.`);
+  } else {
+    console.log("ℹ️ No se encontró ningún turno abierto para el administrador.");
+  }
+  revalidatePath("/dashboard");
 }

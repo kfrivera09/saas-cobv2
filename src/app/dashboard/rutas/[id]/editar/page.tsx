@@ -8,7 +8,7 @@ export default async function EditarRutaPage({ params }: { params: Promise<{ id:
   // Buscamos la ruta y los trabajadores disponibles para asignar
   const [ruta, workers] = await Promise.all([
     prisma.route.findUnique({ where: { id } }),
-    prisma.user.findMany({ where: { role: "WORKER" } })
+    prisma.user.findMany({ where: { role: "WORKER", active: true } })
   ]);
 
   if (!ruta) return <div className="p-10">Ruta no encontrada</div>;

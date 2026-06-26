@@ -14,8 +14,12 @@ export async function registrarPagoCuota(prevState: any, formData: FormData) {
   const installmentId = formData.get("installmentId") as string;
   const loanId = formData.get("loanId") as string;
   const amount = parseFloat(formData.get("amount") as string);
+  const photoFile = formData.get("photo") as File;
 
-  // 1. VALIDACIÓN DE BLOQUEO DIARIO [cite: 12]
+  if (!amount || amount <= 0 || !loanId || !installmentId) {
+    return { error: "Datos inválidos." };
+  }
+
   const inicioHoy = new Date();
   inicioHoy.setHours(0, 0, 0, 0);
 
@@ -24,19 +28,74 @@ export async function registrarPagoCuota(prevState: any, formData: FormData) {
   });
 
   if (cobroExistente) {
-    return { error: "⚠️ Este cliente ya realizó un pago hoy." };
+    return { error: "Este cliente ya realizó un pago hoy." };
   }
 
-  // ... (resto de tu lógica de transacción actual)
+  const usuario = await prisma.user.findUnique({
+    where: { email: session.user.email }
+  });
+
+  if (!usuario) return { error: "Usuario no encontrado." };
+
+  const jornada = await prisma.workday.findFirst({
+    where: { workerId: usuario.id, status: "OPEN" }
+  });
+
+  if (!jornada) {
+    return { error: "Debes tener una jornada abierta para registrar cobros." };
+  }
+
+  const cuota = await prisma.installment.findUnique({ where: { id: installmentId } });
+  if (!cuota) return { error: "Cuota no encontrada." };
+
+  const prestamo = await prisma.loan.findUnique({ where: { id: loanId } });
+  if (!prestamo) return { error: "Préstamo no encontrado." };
+  if (prestamo.balance < amount) {
+    return { error: `El saldo pendiente ($${prestamo.balance.toFixed(0)}) es menor al monto ingresado ($${amount.toFixed(0)}).` };
+  }
+
+  let photoUrl = null;
+  if (photoFile && photoFile.size > 0) {
+    const fileName = `cobro-${Date.now()}-${photoFile.name.replace(/\s+/g, '_')}`;
+    const { data } = await supabase.storage.from('evidencias').upload(`cobros/${fileName}`, photoFile);
+    if (data) {
+      const { data: { publicUrl } } = supabase.storage.from('evidencias').getPublicUrl(`cobros/${fileName}`);
+      photoUrl = publicUrl;
+    }
+  }
+
+  const nuevoTotalPagado = cuota.amountPaid + amount;
+  const nuevoEstado = nuevoTotalPagado >= cuota.amountDue ? "PAID" : "PARTIAL";
+
   try {
-    await prisma.$transaction([ /* ... tus updates y create collection ... */ ]);
+    await prisma.$transaction([
+      prisma.installment.update({
+        where: { id: installmentId },
+        data: {
+          amountPaid: nuevoTotalPagado,
+          status: nuevoEstado,
+          paidAt: new Date()
+        }
+      }),
+      prisma.loan.update({
+        where: { id: loanId },
+        data: { balance: { decrement: amount } }
+      }),
+      prisma.collection.create({
+        data: {
+          workdayId: jornada.id,
+          loanId: loanId,
+          amount: amount,
+          evidencePhoto: photoUrl
+        }
+      })
+    ]);
     revalidatePath("/cobrador/caja");
     revalidatePath("/dashboard");
   } catch (e) {
     return { error: "Error al guardar el pago" };
   }
 
-  // Redirigimos solo si todo salió bien
   redirect("/cobrador/ruta");
 }
 
@@ -83,19 +142,25 @@ export async function registrarUbicacion(lat: number, lng: number) {
 
 export async function iniciarJornada(formData: FormData) {
   const session = await getServerSession();
-  if (!session?.user?.email) return;
+  if (!session?.user?.email) {
+    throw new Error("Sesión expirada.");
+  }
 
   const usuario = await prisma.user.findUnique({
     where: { email: session.user.email }
   });
 
-  if (!usuario || !usuario.tenantId) return;
+  if (!usuario || !usuario.tenantId) {
+    throw new Error("Usuario no encontrado.");
+  }
 
   const jornadaExistente = await prisma.workday.findFirst({
     where: { workerId: usuario.id, status: "OPEN" }
   });
 
-  if (jornadaExistente) return;
+  if (jornadaExistente) {
+    throw new Error("Ya tienes una jornada abierta.");
+  }
 
   const baseAmount = parseFloat(formData.get("baseAmount") as string) || 0;
 
@@ -117,15 +182,18 @@ export async function iniciarJornada(formData: FormData) {
  */
 export async function registrarGasto(formData: FormData) {
   const session = await getServerSession();
-  if (!session?.user?.email) return;
+  if (!session?.user?.email) {
+    throw new Error("Sesión expirada.");
+  }
 
   const amount = parseFloat(formData.get("amount") as string);
   const description = formData.get("description") as string;
   
-  // Capturamos el archivo físico del formulario [cite: 679]
   const photoFile = formData.get("photo") as File;
 
-  if (isNaN(amount) || amount <= 0 || !description) return;
+  if (isNaN(amount) || amount <= 0 || !description) {
+    throw new Error("Monto inválido o descripción vacía.");
+  }
 
   let photoUrl = null;
 
@@ -155,13 +223,17 @@ export async function registrarGasto(formData: FormData) {
     where: { email: session.user.email }
   });
 
-  if (!usuario) return;
+  if (!usuario) {
+    throw new Error("Usuario no encontrado.");
+  }
 
   const jornadaActiva = await prisma.workday.findFirst({
     where: { workerId: usuario.id, status: "OPEN" }
   });
 
-  if (!jornadaActiva) return;
+  if (!jornadaActiva) {
+    throw new Error("No tienes una jornada abierta.");
+  }
 
   // 3. Guardamos el gasto incluyendo la URL de Supabase (más ligero que el Base64) [cite: 665, 680]
   await prisma.expense.create({
@@ -186,6 +258,8 @@ export async function cerrarJornadaConBlindDrop(formData: FormData) {
 
   const reportedCash = parseFloat(formData.get("reportedCash") as string);
   if (isNaN(reportedCash)) return;
+
+  const photoFile = formData.get("photo") as File;
 
   const usuario = await prisma.user.findUnique({
     where: { email: session.user.email }
@@ -215,22 +289,32 @@ export async function cerrarJornadaConBlindDrop(formData: FormData) {
   const calculatedCash = (jornadaActiva.baseAmount + totalCobrado) - totalGastos;
   const difference = reportedCash - calculatedCash;
 
-  // Registro del cierre
-  await prisma.workdayClosure.create({
-    data: {
-      workdayId: jornadaActiva.id,
-      calculatedCash,
-      reportedCash,
-      difference,
-      status: "PENDING_APPROVAL"
+  let photoUrl = null;
+  if (photoFile && photoFile.size > 0) {
+    const fileName = `cierre-${Date.now()}-${photoFile.name.replace(/\s+/g, '_')}`;
+    const { data } = await supabase.storage.from('evidencias').upload(`cierres/${fileName}`, photoFile);
+    if (data) {
+      const { data: { publicUrl } } = supabase.storage.from('evidencias').getPublicUrl(`cierres/${fileName}`);
+      photoUrl = publicUrl;
     }
-  });
+  }
 
-  // Marcar jornada como cerrada
-  await prisma.workday.update({
-    where: { id: jornadaActiva.id },
-    data: { status: "CLOSED", closedAt: new Date() }
-  });
+  await prisma.$transaction([
+    prisma.workdayClosure.create({
+      data: {
+        workdayId: jornadaActiva.id,
+        calculatedCash,
+        reportedCash,
+        difference,
+        evidencePhoto: photoUrl,
+        status: "PENDING_APPROVAL"
+      }
+    }),
+    prisma.workday.update({
+      where: { id: jornadaActiva.id },
+      data: { status: "CLOSED", closedAt: new Date() }
+    })
+  ]);
 
   revalidatePath("/dashboard");
   redirect("/cobrador");
